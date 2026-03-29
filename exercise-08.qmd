@@ -10,7 +10,7 @@ library(skimr)
 
 install.packages("tibble")
 
-```{r}
+```{r}#
 
 library(tidyverse)
 library(tibble)
@@ -23,7 +23,7 @@ head(d)
 
 d <- as_tibble(d)
 
-eda <-  skim(d)
+#eda <-  skim(d)
 
 ##step 2, plot brain size ECV as a function of social group size, longevity , juvenile period length, and reproductive lifespan. 
 
@@ -50,7 +50,7 @@ p4 <- ggplot(data = d, aes(x = Repro_lifespan, y = ECV))+
 
 Step 3 - derive by hand the oridinary least squares regression coefficients beta1 and beta 0 for ECV as a function of social group size 
 
-```{r}
+```{r}#
 
 olsd <- d %>%
   drop_na(ECV) %>%
@@ -65,7 +65,7 @@ beta0  #[1] 30.35652
 ```
 Step 4 confirm you get the same results using the lm() funciton 
 
-```{r}
+```{r}#
 
 m <- lm(formula = ECV ~ Group_size, data = olsd)
 
@@ -77,7 +77,7 @@ m <- lm(formula = ECV ~ Group_size, data = olsd)
 
 ```
 Step 5 - repeat the analysis above for three different major radiations of primates - “catarrhines”, “platyrrhines”, and “strepsirhines” - separatelty. These are stored in the variable Taxonomic_group. Do your regression coefficients differ among groups? how might you determine this?
-```{r}
+```{r}#
 
 d2 <- d %>%
   filter(Taxonomic_group == "Catarrhini")
@@ -113,7 +113,7 @@ lm(formula = ECV ~ Group_size, data = d4)
 Step 6 For your first regression of ECV on social group size, calculate the standard error for the slope coefficient, the 95% CI, and the p value associated with this coefficient by hand. Also extract this same information from the results of running the lm() function.
 
 library(broom)
-```{r}
+```{r}#
 
 ##Standard error for the slope coefficient
 SSY <- sum((m$model$ECV - mean(m$model$ECV))^2)
@@ -148,7 +148,7 @@ summary(m)
 
 ```
 Step 7 Use a permutation approach with 1000 permutations to generate a null sampling distribution for the slope coefficient. What is it that you need to permute?
-```{r}
+```{r}#
 
 nperm <- 1000
 perm_coefs <- vector(length = nperm)
@@ -178,7 +178,7 @@ mean(abs(perm_coefs))
 
 Step 8 Use bootstrapping to generate a 95% CI for your estimate of the slope coefficient using both the quantile method and the theory-based method (i.e., using the standard deviation of the bootstrapped sampling distribution as an estimate of the standard error). Do these CIs suggest that your slope coefficient is different from zero?
 
-```{r}
+```{r}#
  nboot <- 1000
  boot_coefs <- vector(length = nboot) 
 

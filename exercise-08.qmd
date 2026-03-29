@@ -1,0 +1,198 @@
+---
+title: "exercise 8"
+format: html
+date: 3-27-26
+---
+
+install.packages("skimr")
+
+library(skimr)
+
+install.packages("tibble")
+
+```{r}
+
+library(tidyverse)
+library(tibble)
+library(ggplot2)
+
+d <- read.csv("https://raw.githubusercontent.com/difiore/ada-datasets/main/Street_et_al_2017.csv")
+
+names(d)
+head(d)
+
+d <- as_tibble(d)
+
+eda <-  skim(d)
+
+##step 2, plot brain size ECV as a function of social group size, longevity , juvenile period length, and reproductive lifespan. 
+
+p1 <- ggplot(data = d, aes(x = Group_size, y = ECV))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+p2 <- ggplot(data = d, aes(x = Longevity, y = ECV))+
+  geom_point(na.rm = TRUE)+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+p3 <- ggplot(data = d, aes(x = Weaning, y = ECV))+
+  geom_point(na.rm = TRUE)+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+p4 <- ggplot(data = d, aes(x = Repro_lifespan, y = ECV))+
+  geom_point(na.rm = TRUE)+
+  geom_smooth(method = "lm")+
+  theme_classic()
+```
+
+Step 3 - derive by hand the oridinary least squares regression coefficients beta1 and beta 0 for ECV as a function of social group size 
+
+```{r}
+
+olsd <- d %>%
+  drop_na(ECV) %>%
+  drop_na(Group_size)
+
+beta1 <- sum((olsd$ECV - mean(olsd$ECV))* (olsd$Group_size - mean(olsd$Group_size)))/sum((olsd$Group_size - mean(olsd$Group_size))^2)
+
+beta1  #[1] 2.463071
+
+beta0 <- mean(olsd$ECV) - beta1 * mean(olsd$Group_size)
+beta0  #[1] 30.35652
+```
+Step 4 confirm you get the same results using the lm() funciton 
+
+```{r}
+
+m <- lm(formula = ECV ~ Group_size, data = olsd)
+
+#Coefficients:
+#(Intercept)   Group_size  
+#     30.357        2.463  
+
+#they are the same. 
+
+```
+Step 5 - repeat the analysis above for three different major radiations of primates - “catarrhines”, “platyrrhines”, and “strepsirhines” - separatelty. These are stored in the variable Taxonomic_group. Do your regression coefficients differ among groups? how might you determine this?
+```{r}
+
+d2 <- d %>%
+  filter(Taxonomic_group == "Catarrhini")
+
+d3 <- d %>%
+  filter(Taxonomic_group == "Platyrrhini")
+
+d4 <- d %>%
+  filter(Taxonomic_group == "Strepsirhini")
+
+lm(formula = ECV ~ Group_size, data = d2)
+
+#Coefficients:
+#(Intercept)   Group_size  
+#     83.421        1.146  
+
+lm(formula = ECV ~ Group_size, data = d3)
+
+#Coefficients:
+#(Intercept)   Group_size  
+#     16.181        1.965  
+
+lm(formula = ECV ~ Group_size, data = d4)
+
+#Coefficients:
+#(Intercept)   Group_size  
+#      8.176        1.841 
+
+#yes the regression coefficient differ among groups, You can determine the regression coefficients by using the lm function. 
+
+
+```
+Step 6 For your first regression of ECV on social group size, calculate the standard error for the slope coefficient, the 95% CI, and the p value associated with this coefficient by hand. Also extract this same information from the results of running the lm() function.
+
+library(broom)
+```{r}
+
+##Standard error for the slope coefficient
+SSY <- sum((m$model$ECV - mean(m$model$ECV))^2)
+SSR <- sum((m$fitted.values - mean(m$model$ECV))^2)
+
+SSE <- sum(m$residuals^2)
+
+
+df_regression <- 1
+df_error <- nrow(olsd) - df_regression - 1 
+
+df_y <- nrow(olsd) - df_regression
+
+MSR <- SSR/df_regression
+MSE <- SSE/df_error
+
+SSX <- sum((m$model$Group_size - mean(m$model$Group_size))^2)
+
+SEbeta1 <- sqrt(MSE/SSX)
+#[1] 0.2476422
+
+#95% CI and P value of Beta
+
+crit <- qf(p = 0.95, df1 = 1, df2 = 299)
+
+fratio <- MSR/MSE
+pf(q = fratio, df1 = 1, df2 = 299, lower.tail = FALSE)
+#[1] 2.537129e-20
+
+
+summary(m)
+
+```
+Step 7 Use a permutation approach with 1000 permutations to generate a null sampling distribution for the slope coefficient. What is it that you need to permute?
+```{r}
+
+nperm <- 1000
+perm_coefs <- vector(length = nperm)
+
+for (i in 1:nperm){
+  d_perm <- olsd #make a fresh copy each iteration 
+  d_perm$Group_size <- sample(olsd$Group_size) #shuffle predictor
+  perm_coefs[[i]] <- lm(ECV ~ Group_size, data = d_perm) %>%
+    tidy() %>%
+    filter(term == "Group_size") %>%
+    pull(estimate)
+}
+
+perm_coefs
+
+observed_coef <- tidy(m)%>%
+  filter(term == "Group_size")%>%
+  pull(estimate)
+
+
+p_value <- mean(abs(perm_coefs) >= abs(observed_coef))
+
+cat("Permutation p-value:", p_value, "\n")
+
+mean(abs(perm_coefs))
+```
+
+Step 8 Use bootstrapping to generate a 95% CI for your estimate of the slope coefficient using both the quantile method and the theory-based method (i.e., using the standard deviation of the bootstrapped sampling distribution as an estimate of the standard error). Do these CIs suggest that your slope coefficient is different from zero?
+
+```{r}
+ nboot <- 1000
+ boot_coefs <- vector(length = nboot) 
+
+for (i in 1:nboot) {
+  d_boot <- d[sample(nrow(d), replace = TRUE), ] #resample rows with replacement 
+  boot_coefs[[i]] <- lm(ECV ~ Group_size, data = d_boot) %>%
+    tidy() %>%
+    filter(term == "Group_size") %>%
+    pull(estimate)
+}
+
+
+hist(boot_coefs)
+
+
+```
+
